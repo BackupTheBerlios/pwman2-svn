@@ -1,9 +1,9 @@
 import os.path
 
-import pwdb.Encryptor
+import pwdb.CryptoEngine
 
 # CONSTANTS
-NODE = 'NODE'
+PW = 'PASSWORD'
 LIST = 'LIST'
 
 class PwmanDatabaseException(Exception):
@@ -31,10 +31,14 @@ class PwmanDatabaseException(Exception):
         
 
 class PwmanDatabaseNode:
-    def __init__(self, name, parent, type=NODE):
+    def __init__(self, name, parent, type=PW):
         self._parent = parent
         self._setName(name)
-        self._type = type
+        if (type == PW or type == LIST):
+            self._type = type
+        else:
+            raise PwmanDatabaseException(
+                "Invalid Node type ["+type+"]")
 ##         if (filename == None):
 ##             self.setPath(self, pathstr)
 ##         elif (filename.startswith('/')):
@@ -43,20 +47,26 @@ class PwmanDatabaseNode:
 ##             path = os.path.join(pathstr, filename)
 ##             self.setPath(path)
     
-    def _setName(self, node):
-        self._node = node
+    def _setName(self, name):
+        self._name = name
         
     def getParent(self):
         return self._parent
 
     def getName(self):
-        return self._node
+        return self._name
 
+    def getType(self):
+        return self._type
+    
     def getCryptedName(self):
-        return self._node
+        return self._name
 
     def __str__(self):
-        return os.path.join(self._parent.__str__(), self._node)
+        if (self._parent == None):
+            return os.path.join("/", self._name)
+        else:
+            return os.path.join(self._parent.__str__(), self._name)
 
 class PwmanDatabaseData:
     def __init__(self, data, crypted=False):
@@ -83,89 +93,70 @@ class PwmanDatabase:
     
     def __init__(self, params):
         """Initialised encrytion used by all"""
+        CryptoEngine.init(params)
         self.changeList("/") # starts at root
 
     def open(self):
         """Open the database"""
         self._open()
 
-    def _open(self):
-        pass 
-
     def put(self, path, dataobj):
         """Encrypt data and put it into database under name"""
         node = self._buildNode(path)
         data = PwmanDatabaseData(dataobj)
         self._put(node, data)
-        
-    def _put(self, node, data):
-        pass
 
     def get(self, path):
         """Get and decrypt data associated with name"""
-        if (nodename.startswith("/")):
-            raise PwmanDatabaseException("Implement relative in get")
         node = self._buildNode(path)
         data = self._get(node)
         return data.getData()
-
-    def _get(self, node):
-        pass
 
     def delete(self, path):
         """Delete name and associated data from database"""
         node = self._buildNode(path)
         self._delete(node)
 
-    def _delete(self, node):
-        pass
-
     def close(self):
         """Close the database"""
         self._close()
 
-    def _close(self):
-        pass
-
     def makeList(self, path):
         """Make directory 'path' in current directory"""
-        path = DatabasePath(self.getcwd(), name)
-        self._mkdir(path)
-
-    def _makeList(self, path):
-        pass
+        node = self._buildNode(path, LIST)
+        if (not self._exists(node)):
+            self._makeList(node)
 
     def removeList(self, path):
         """Remove directory 'path' from current directory"""
-        path = DatabasePath(self.getcwd(), name)
-        self._rmdir(name)
+        node = self._buildNode(path, LIST)
+        self._removeList(node)
         
-    def _removeList(self, path):
-        pass
-
-    
     def list(self, path=None):
         """Returns a list object in directory 'path'"""
         if (path == None):
-            path = DatabasePath(self.getcwd())
-        return self._list(path)
+            node = self.getCurrentList()
+        else:
+            node = self._buildNode(path, LIST)
+        return self._list(node)
 
-    def _list(self, path):
-        pass
+    def exists(self, path, type=PW):
+        """Return bool whether an object exists"""
+        node = self._buildNode(path, type)
+        return self._exists(node)
 
     def changeList(self, path):
         """Change to directory 'path'"""
-        self._clist = self._buildNode(path, LIST)
-##         if (path.startswith("/")):
-##             self._clist = PwmanDatabaseList(path)
-##         else:
-##             raise PwmanDatabaseException("Relative paths not implemented yet")
+        node = self._buildNode(path, LIST)
+        if (node == None or self._exists(node)):
+            self._clist = node
+        else:
+            raise PwmanDatabaseException("changeList: List does not exist")
     
     def getCurrentList(self):
         """Returns current working directory"""
         return self._clist
 
-    
     def move(self, oldpath, newpath):
         """Move object from oldpath to newpath"""
         oldpath = DatabasePath(self.getcwd(), oldpath)
@@ -178,40 +169,23 @@ class PwmanDatabase:
         newpath = DatabasePath(self.getcwd(), newpath)
         self._copy(oldpath, newpath)
 
-    def exists(self, path):
-        """Return bool whether an object exists"""
-        path = DatabasePath(self.getcwd(), path)
-        return self._exists(path)
-
-    def _exists(self, path):
-        pass
-
-    def isList(self, path):
-        """Return bool whether an object is a directory"""
-        path = DatabasePath(self.getcwd(), path)
-        return self._isdir(path)
-
-    def _isList(self, path):
-        pass
-
-    def isNode(self, path):
-        """Return bool whether an object is a password"""
-        path = DatabasePath(self.getcwd(), path)
-        return self._ispw(path)
-
-    def _isNode(self, path):
-        pass
-
-    def _buildNode(self, path, type=NODE):
+    def _buildNode(self, path, type=PW):
         if (path == ""):
-            return PwmanDatabaseNode(
+            return None
         if (not path.startswith("/")):
-            path = os.path.join(self.getCurrentList(), path)
+            clist = self.getCurrentList()
+            if (clist == None):
+                path = os.path.join("/", path)
+            else:
+                path = os.path.join(self.getCurrentList().__str__(), path)
             path = os.path.normpath(path)
+        if (path == "/"):
+            return None
         (path, name) = path.rsplit("/", 1)
         parent = self._buildNode(path, LIST)
         node = PwmanDatabaseNode(name, parent, type)
         return node
+
         
         
     
