@@ -1,3 +1,4 @@
+"""SQLite PwmanDatabase implementation."""
 from pwdb.PwmanDatabase import PwmanDatabase,PwmanDatabaseException,\
      PwmanDatabaseNode,PwmanDatabaseData, PW, LIST
 from pysqlite2 import dbapi2 as sqlite
@@ -6,6 +7,9 @@ class SQLitePwmanDatabase(PwmanDatabase):
     """SQLite Database implementation"""
     
     def __init__(self, params):
+        """Initialise SQLitePwmanDatabase instance.
+        Currently, the only SQLite specific param is 'filename'.
+        This points to the database file which we should use."""
         PwmanDatabase.__init__(self, params)
 
         self._nodetable = 'NODES';
@@ -151,12 +155,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
         # Find id of list to be deleted
         id = self._getNodeId(node)
 
-        # check if list has children
-        if (not self._listEmpty(node)):
-            raise PwmanDatabaseException(
-                    "SQLite: Cannot remove list, not empty")
-                
-        # finally, we delete the list from the database is all is ok
+        # we delete the list from the database
         try:
             self._cur.execute("DELETE FROM "+self._nodetable
                               +" WHERE ID = ?", [id])
