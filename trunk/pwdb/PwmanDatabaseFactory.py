@@ -1,5 +1,5 @@
 from pwdb.PwmanDatabase import PwmanDatabase, PwmanDatabaseException
-from pwdb.drivers import BerkeleyDatabase,SQLiteDatabase
+from pwdb.drivers import SQLiteDatabase
 
 def create(params):
     try:
@@ -8,7 +8,8 @@ def create(params):
         raise DatabaseException("No Database type specified")
 
     if type == "BerkeleyDB":
-        db = BerkeleyDatabase.BerkeleyDatabase(params)
+        pass
+#        db = BerkeleyDatabase.BerkeleyDatabase(params)
     elif (type == "SQLite"):
         db = SQLiteDatabase.SQLitePwmanDatabase(params)
     else:

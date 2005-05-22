@@ -17,7 +17,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             raise PwmanDatabaseException(
                 "SQLite: missing parameter ["+e+"]")
 
-    def open(self):
+    def _open(self):
         try:
             self._con = sqlite.connect(self._filename)
             self._cur = self._con.cursor()

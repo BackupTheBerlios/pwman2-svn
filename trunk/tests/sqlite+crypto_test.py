@@ -3,11 +3,12 @@
 from pwdb.PwmanDatabase import PwmanDatabaseException
 import pwdb.PwmanDatabaseFactory
 
-def callback():
-    return 'foobar'
+class callback(pwdb.CryptoEngine.Callback):
+    def execute(self):
+        return "foobar!"
 
 params = {'type': 'SQLite', 'filename':'/tmp/test.db',
-          'encryptionAlgorithm': 'AES', 'encryptionCallback': callback}
+          'encryptionAlgorithm': 'AES', 'encryptionCallback': callback()}
 
 db = pwdb.PwmanDatabaseFactory.create(params)
 db.open()

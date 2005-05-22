@@ -4,11 +4,14 @@ class foo:
     def bar(self):
         print "woo yay!"
 
-def callback():
-    return "foobar"
+class callback(pwdb.CryptoEngine.Callback):
+    def execute(self):
+        return "foobar!"
 
-params = {'encryptionAlgorithm': 'AES',
-          'encryptionCallback': callback}
+algo = "AES"
+
+params = {'encryptionAlgorithm': algo,
+          'encryptionCallback': callback()}
 
 pwdb.CryptoEngine.init(params)
 
