@@ -1,6 +1,5 @@
 import os.path
-
-import pwdb.CryptoEngine
+import pwdb.CryptoEngine as CryptoEngine
 
 # CONSTANTS
 PW = 'PASSWORD'
@@ -12,43 +11,27 @@ class PwmanDatabaseException(Exception):
     def __str__(self):
         return "PwmanDatabaseException: " + self.message
 
-## class PwmanDatabaseList:
-##     def __init__(self, path):
-##         self._setPath(path)
-
-##     def _setPath(self, path):
-##         # encryption will be done here was well
-##         self._path = os.path.normpath(path)
-        
-##     def getPath(self):
-##         return self._path
-
-##     def getCryptedPath(self):
-##         return self._path
-
-##     def __str__(self):
-##         return self._path
-        
-
 class PwmanDatabaseNode:
-    def __init__(self, name, parent, type=PW):
+    def __init__(self, name, parent, type=PW, crypted=False):
+        self._crypto = CryptoEngine.get()
         self._parent = parent
-        self._setName(name)
+        if (crypted == True):
+            self._setCryptedName(name)
+        else:
+            self._setName(name)
         if (type == PW or type == LIST):
             self._type = type
         else:
             raise PwmanDatabaseException(
                 "Invalid Node type ["+type+"]")
-##         if (filename == None):
-##             self.setPath(self, pathstr)
-##         elif (filename.startswith('/')):
-##             self.setPath(self, filename)
-##         else:
-##             path = os.path.join(pathstr, filename)
-##             self.setPath(path)
     
     def _setName(self, name):
+        self._cryptname = self._crypto.encrypt(name)
         self._name = name
+
+    def _setCryptedName(self, name):
+        self._cryptname = name
+        self._name = self._crypto.decrypt(name)
         
     def getParent(self):
         return self._parent
@@ -60,7 +43,7 @@ class PwmanDatabaseNode:
         return self._type
     
     def getCryptedName(self):
-        return self._name
+        return self._cryptname
 
     def __str__(self):
         if (self._parent == None):
@@ -70,10 +53,11 @@ class PwmanDatabaseNode:
 
 class PwmanDatabaseData:
     def __init__(self, data, crypted=False):
+        self._crypto = CryptoEngine.get()
         if crypted == True:
-            self.setCryptedData(data)
+            self._setCryptedData(data)
         else:
-            self.setData(data)
+            self._setData(data)
 
     def getData(self):
         return self._data
@@ -81,12 +65,13 @@ class PwmanDatabaseData:
     def getCryptedData(self):
         return self._cryptdata
 
-    def setData(self, data):
+    def _setData(self, data):
         self._data = data
-        self._cryptdata = data #Cryptor.encrypt(data)
+        self._cryptdata = self._crypto.encrypt(data)
 
-    def setCryptedData(self, data):
-        self._data = data
+    def _setCryptedData(self, data):
+        self._cryptdata = data
+        self._data = self._crypto.decrypt(data)
         
 class PwmanDatabase:
     """PWDB Database interface"""

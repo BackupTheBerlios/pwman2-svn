@@ -200,7 +200,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             nodes = []
             row = self._cur.fetchone()
             while (row != None):
-                nodes.append(PwmanDatabaseNode(row[0], node, row[1]))
+                nodes.append(PwmanDatabaseNode(row[0], node, row[1], True))
                 row = self._cur.fetchone()
             return nodes
         except sqlite.DatabaseError, e:
@@ -218,7 +218,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
                 return False
             else:
                 return True
-        except DatabaseError, e:
+        except sqlite.DatabaseError, e:
             raise PwmanDatabaseException(
                 "SQLite: Error checking existance of node ["+e.__str__()+"]")
 
