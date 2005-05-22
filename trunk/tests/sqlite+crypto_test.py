@@ -44,6 +44,12 @@ db.changeList("..")
 db.changeList("/FoobarList1/SubSublist")
 db.put("FoobarSub3", "FoobarSubData")
 db.put("FoobarSub4", "FoobarSub2Data")
+db.copy("FoobarSub4", "..")
+db.copy("FoobarSub4", "/")
+#db.copy("/", "/FoobarList3/root")
+db.copy("/FoobarList1", "/FoobarList3")
+
+db.move("/FoobarList3", "/RenamedFoobarlist3")
 
 db.removeList("/FoobarList2")
 

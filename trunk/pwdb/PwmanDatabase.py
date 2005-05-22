@@ -160,14 +160,24 @@ class PwmanDatabase:
         if (not self._exists(node)):
             self._makeList(node)
 
-    def removeList(self, path):
+    def removeList(self, path, recursive=False):
         """Remove list 'path' from current list.
         Will raise PwmanDatabaseException if list not empty."""
         node = self._buildNode(path, LIST)
         # check if list has children
-        if (not self._listEmpty(node)):
+        if (not self._listEmpty(node) and not recursive):
             raise PwmanDatabaseException(
                     "Cannot remove list, not empty")
+        else:
+            self._recursiveRemoveList(node)
+
+    def _recursiveRemoveList(self, node):
+        nodelist = self._list(node)
+        for i in nodelist:
+            if (i.getType() == LIST):
+                self._recursiveRemoveList(i)
+            else:
+                self._delete(i)
         self._removeList(node)
         
     def list(self, path=None):
@@ -182,6 +192,10 @@ class PwmanDatabase:
     def exists(self, path, type=PW):
         """exists(path, type=PW) -> bool
         Check if `path` exists."""
+        # / always exists, but the node is None
+        # so shortcut it here
+        if (path == "/"):
+            return True
         node = self._buildNode(path, type)
         return self._exists(node)
 
@@ -197,17 +211,51 @@ class PwmanDatabase:
         """Returns current list."""
         return self._clist
 
-    def move(self, oldpath, newpath):
-        """Move object from oldpath to newpath"""
-        oldpath = DatabasePath(self.getcwd(), oldpath)
-        newpath = DatabasePath(self.getcwd(), newpath)
-        self._move(oldpath, newpath)
+    def move(self, source, dest):
+        """Move object from source to dest."""
+        self.copy(source, dest)
+        if (self.exists(source, PW)):
+            self.delete(source)
+        elif (self.exists(source, LIST)):
+            self.removeList(source, True)
 
-    def copy(self, oldpath, newpath):
-        """Copy object from oldpath to newpath"""
-        oldpath = DatabasePath(self.getcwd(), oldpath)
-        newpath = DatabasePath(self.getcwd(), newpath)
-        self._copy(oldpath, newpath)
+    def copy(self, source, dest):
+        """Copy object from source to dest."""
+        # check the type of source if it exists
+        if (self.exists(source, PW)):
+            snode = self._buildNode(source, PW)
+        elif (self.exists(source, LIST)):
+            snode = self._buildNode(source, LIST)
+        else:
+            raise PwmanDatabaseException("copy: source does not exist")
+
+        # someone is trying to copy the root node, can't be doing that
+        if (snode == None):
+            raise PwmanDatabaseException("copy: cannot copy root list")
+            
+        # if dest is a list and exists, move into it with old name
+        # else move it to dest with new name
+        if (self.exists(dest, LIST)):
+            path = os.path.join(dest, snode.getName())
+            dnode = self._buildNode(path, snode.getType())
+        elif (self.exists(dest, PW)):
+            raise PwmanDatabaseException("copy: cannot overwrite dest")
+        else:
+            dnode = self._buildNode(dest, snode.getType())
+
+        self._copy(snode, dnode)
+
+    def _copy(self, snode, dnode):
+        if (snode.getType() == PW):
+            data = self._get(snode)
+            self._put(dnode, data)
+        else:
+            if (not self._exists(dnode)):
+                self._makeList(dnode)
+                nodelist = self._list(snode)
+                for i in nodelist:
+                    newdnode = PwmanDatabaseNode(i.getName(), dnode, i.getType())
+                    self._copy(i, newdnode)
 
     def _buildNode(self, path, type=PW):
         if (path == ""):
