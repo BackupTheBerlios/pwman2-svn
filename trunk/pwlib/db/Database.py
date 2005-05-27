@@ -1,34 +1,34 @@
 """
-Main PwmanDatabase Module. Defines the PwmanDatabase abstract class that
+Main Database Module. Defines the Database abstract class that
 all drivers must implement.
-A PwmanDatabase is a heirarchal database, like a file system. Instances
-should not be created directly but through PwmanDatabaseFactory.
-PwmanDatabaseNode contains the path. It can be either a password or a list.
-PwmanDatabaseData contains the data which is actually stored.
+A Database is a heirarchal database, like a file system. Instances
+should not be created directly but through DatabaseFactory.
+DatabaseNode contains the path. It can be either a password or a list.
+DatabaseData contains the data which is actually stored.
 """
 import os.path
-import pwdb.CryptoEngine as CryptoEngine
+import pwlib.util.CryptoEngine as CryptoEngine
 
 """Constants used to define the node types"""
 PW = 'PASSWORD'
 LIST = 'LIST'
 
-class PwmanDatabaseException(Exception):
-    """Generic PwmanDatabase Exception"""
+class DatabaseException(Exception):
+    """Generic Database Exception"""
     def __init__(self, message):
         self.message = message
     def __str__(self):
-        return "PwmanDatabaseException: " + self.message
+        return "DatabaseException: " + self.message
 
-class PwmanDatabaseNode:
+class DatabaseNode:
     """
-    PwmanDatabaseNode contains the path to a node, and its type.
+    DatabaseNode contains the path to a node, and its type.
     The type can be a password or a list.
     """
     def __init__(self, name, parent, type=PW, crypted=False):
-        """Initialise a PwmanDatabaseNode instance.
-        name is the name of the node. parent is another PwmanDatabaseNode.
-        type is either PW or LIST. If it is neither a PwmanDatabaseException
+        """Initialise a DatabaseNode instance.
+        name is the name of the node. parent is another DatabaseNode.
+        type is either PW or LIST. If it is neither a DatabaseException
         is raised.
         crypted specifies whether the name is ciphertext or plaintext.
         Defaults to False"""
@@ -41,7 +41,7 @@ class PwmanDatabaseNode:
         if (type == PW or type == LIST):
             self._type = type
         else:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "Invalid Node type ["+type+"]")
     
     def _setName(self, name):
@@ -53,7 +53,7 @@ class PwmanDatabaseNode:
         self._name = self._crypto.decrypt(name)
         
     def getParent(self):
-        """Return the parent PwmanDatabaseNode."""
+        """Return the parent DatabaseNode."""
         return self._parent
 
     def getName(self):
@@ -75,8 +75,8 @@ class PwmanDatabaseNode:
         else:
             return os.path.join(self._parent.__str__(), self._name)
 
-class PwmanDatabaseData:
-    """PwmanDatabase contains the data for a node. Only password nodes
+class DatabaseData:
+    """Database contains the data for a node. Only password nodes
     have data."""
     def __init__(self, data, crypted=False):
         """Initialise a data instance. data can be any picklable object
@@ -106,22 +106,22 @@ class PwmanDatabaseData:
         self._cryptdata = data
         self._data = self._crypto.decrypt(data)
         
-class PwmanDatabase:
-    """PWDB Database interface. Methods convert paths to
-    PwmanDatabaseNodes and pass these to the driver implementations.
-    All methods can raise PwmanDatabaseException.
+class Database:
+    """Database interface. Methods convert paths to
+    DatabaseNodes and pass these to the driver implementations.
+    All methods can raise DatabaseException.
     
     Drivers must implement:
-    PwmanDatabase._open()
-    PwmanDatabase._put(node, data)
-    PwmanDatabase._get(node)
-    PwmanDatabase._delete(node)
-    PwmanDatabase._close()
-    PwmanDatabase._makeList(node)
-    PwmanDatabase._removeList(node)
-    PwmanDatabase._listEmpty(node)
-    PwmanDatabase._list(node)
-    PwmanDatabase._exists(node)
+    Database._open()
+    Database._put(node, data)
+    Database._get(node)
+    Database._delete(node)
+    Database._close()
+    Database._makeList(node)
+    Database._removeList(node)
+    Database._listEmpty(node)
+    Database._list(node)
+    Database._exists(node)
     """
     
     def __init__(self, params):
@@ -136,7 +136,7 @@ class PwmanDatabase:
     def put(self, path, dataobj):
         """Encrypt dataobj and put it into database under path."""
         node = self._buildNode(path)
-        data = PwmanDatabaseData(dataobj)
+        data = DatabaseData(dataobj)
         self._put(node, data)
 
     def get(self, path):
@@ -162,11 +162,11 @@ class PwmanDatabase:
 
     def removeList(self, path, recursive=False):
         """Remove list 'path' from current list.
-        Will raise PwmanDatabaseException if list not empty."""
+        Will raise DatabaseException if list not empty."""
         node = self._buildNode(path, LIST)
         # check if list has children
         if (not self._listEmpty(node) and not recursive):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                     "Cannot remove list, not empty")
         else:
             self._recursiveRemoveList(node)
@@ -181,7 +181,7 @@ class PwmanDatabase:
         self._removeList(node)
         
     def list(self, path=None):
-        """Returns a array of PwmanDatabaseNode objects in list 'path'.
+        """Returns a array of DatabaseNode objects in list 'path'.
         If path is None, list current."""
         if (path == None):
             node = self.getCurrentList()
@@ -205,7 +205,7 @@ class PwmanDatabase:
         if (node == None or self._exists(node)):
             self._clist = node
         else:
-            raise PwmanDatabaseException("changeList: List does not exist")
+            raise DatabaseException("changeList: List does not exist")
     
     def getCurrentList(self):
         """Returns current list."""
@@ -227,11 +227,11 @@ class PwmanDatabase:
         elif (self.exists(source, LIST)):
             snode = self._buildNode(source, LIST)
         else:
-            raise PwmanDatabaseException("copy: source does not exist")
+            raise DatabaseException("copy: source does not exist")
 
         # someone is trying to copy the root node, can't be doing that
         if (snode == None):
-            raise PwmanDatabaseException("copy: cannot copy root list")
+            raise DatabaseException("copy: cannot copy root list")
             
         # if dest is a list and exists, move into it with old name
         # else move it to dest with new name
@@ -239,7 +239,7 @@ class PwmanDatabase:
             path = os.path.join(dest, snode.getName())
             dnode = self._buildNode(path, snode.getType())
         elif (self.exists(dest, PW)):
-            raise PwmanDatabaseException("copy: cannot overwrite dest")
+            raise DatabaseException("copy: cannot overwrite dest")
         else:
             dnode = self._buildNode(dest, snode.getType())
 
@@ -254,7 +254,7 @@ class PwmanDatabase:
                 self._makeList(dnode)
                 nodelist = self._list(snode)
                 for i in nodelist:
-                    newdnode = PwmanDatabaseNode(i.getName(), dnode, i.getType())
+                    newdnode = DatabaseNode(i.getName(), dnode, i.getType())
                     self._copy(i, newdnode)
 
     def _buildNode(self, path, type=PW):
@@ -271,7 +271,7 @@ class PwmanDatabase:
             return None
         (path, name) = path.rsplit("/", 1)
         parent = self._buildNode(path, LIST)
-        node = PwmanDatabaseNode(name, parent, type)
+        node = DatabaseNode(name, parent, type)
         return node
 
     ##

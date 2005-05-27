@@ -1,22 +1,22 @@
-"""Factory to create PwmanDatabase instances
+"""Factory to create Database instances
 
 Usage:
 
-import pwdb.PwmanDatabaseFactory as DBFactory
+import pwlib.db.DatabaseFactory as DBFactory
 
 db = DBFactory.create(params)
 db.open()
 .....
 """
-from pwdb.PwmanDatabase import PwmanDatabase, PwmanDatabaseException
-from pwdb.drivers import SQLiteDatabase
+from pwlib.db.Database import Database, DatabaseException
+from pwlib.db.drivers import SQLiteDatabase
 
 def create(params):
     """
-    create(params) -> PwmanDatabase
-    Create a PwmanDatabase instance. `params` is a dictionary.
+    create(params) -> Database
+    Create a Database instance. `params` is a dictionary.
     The only key used by this function is 'type'. All others are passed
-    on to the __init__ method of the PwmanDatabase instance.
+    on to the __init__ method of the Database instance.
     'type' can only be 'SQLite' at the moment
     """
     try:
@@ -28,7 +28,7 @@ def create(params):
         pass
 #        db = BerkeleyDatabase.BerkeleyDatabase(params)
     elif (type == "SQLite"):
-        db = SQLiteDatabase.SQLitePwmanDatabase(params)
+        db = SQLiteDatabase.SQLiteDatabase(params)
     else:
         raise DatabaseException("Unknown database type specified")
     return db
