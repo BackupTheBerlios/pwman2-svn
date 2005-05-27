@@ -1,16 +1,16 @@
 """SQLite PwmanDatabase implementation."""
-from pwdb.PwmanDatabase import PwmanDatabase,PwmanDatabaseException,\
-     PwmanDatabaseNode,PwmanDatabaseData, PW, LIST
+from pwlib.db.Database import Database,DatabaseException,DatabaseNode, \
+     DatabaseData,PW,LIST
 from pysqlite2 import dbapi2 as sqlite
 
-class SQLitePwmanDatabase(PwmanDatabase):
+class SQLiteDatabase(Database):
     """SQLite Database implementation"""
     
     def __init__(self, params):
         """Initialise SQLitePwmanDatabase instance.
         Currently, the only SQLite specific param is 'filename'.
         This points to the database file which we should use."""
-        PwmanDatabase.__init__(self, params)
+        Database.__init__(self, params)
 
         self._nodetable = 'NODES';
         self._datatable = 'DATA';
@@ -27,12 +27,12 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur = self._con.cursor()
             self._checkTables()
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException("SQLite: " + e.__str__())
+            raise DatabaseException("SQLite: " + e.__str__())
         
 
     def _put(self, node, data):
         if (node.getType() != PW):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Invalid node, not a password");
 
         if self._exists(node):
@@ -49,7 +49,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             try:
                 self._cur.execute(sql, values)
             except sqlite.DatabaseError, e:
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Error creating node in db ["+e.__str__()+"]")
 
             sql = "INSERT INTO "+self._datatable+" VALUES(?, ?)"
@@ -59,7 +59,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             try:
                 self._cur.execute(sql, values)
             except sqlite.DatabaseError, e:
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Error creating data in db ["+e+"]")
         else:
             sql = "UPDATE "+self._datatable+" SET DATA=? WHERE ID=?"
@@ -69,18 +69,18 @@ class SQLitePwmanDatabase(PwmanDatabase):
             try:
                 self._cur.execute(sql, values)
             except sqlite.DatabaseError, e:
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Error updating data in db ["+e+"]")
         try:
             self._con.commit()
         except DatabaseError, e:
             self._con.rollback()
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error commiting data to db ["+e+"]")
 
     def _get(self, node):
         if (node.getType() != PW):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Invalid node, not password");
 
         sql = "SELECT DATA FROM "+self._nodetable \
@@ -93,18 +93,18 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur.execute(sql, values)
             data = self._cur.fetchone()
             if (data == None):
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Node does not exist in database")
             else:
-                nodedata = PwmanDatabaseData(data[0], True)
+                nodedata = DatabaseData(data[0], True)
                 return nodedata
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error reading node from db ["+e+"]")
 
     def _delete(self, node):
         if (node.getType() != PW):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Invalid node, not password");
         
         # get the id
@@ -117,7 +117,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur.execute("DELETE FROM "+self._datatable
                               + " WHERE ID = ?", [id])
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error deleting from db ["+e.__str__()+"]")
 
         # commit the delete to the database
@@ -125,7 +125,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._con.commit()
         except sqlite.DatabaseError, e:
             self._con.rollback()
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error committing delete to db ["+e.__str__()+"]")
         
     def _close(self):
@@ -134,7 +134,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
 
     def _makeList(self, node):
         if (node.getType() != LIST):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Invalid node, not a list");
         sql = "INSERT INTO "+self._nodetable \
               +"(DATATYPE, NODENAME, PARENT)  VALUES(?, ?, ?)"
@@ -144,12 +144,12 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur.execute(sql, values)
             self._con.commit()
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error creating list ["+e.__str__()+"]")
 
     def _removeList(self, node):
         if (node.getType() != LIST):
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Invalid node, not a list");
         
         # Find id of list to be deleted
@@ -160,7 +160,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur.execute("DELETE FROM "+self._nodetable
                               +" WHERE ID = ?", [id])
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error deleting list from database ["+e.__str__()+"]")
 
         # now commit the changes and bob's your uncle
@@ -168,7 +168,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._con.commit()
         except sqlite.DatabaseError, e:
             self._con.rollback()
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error committing list removal ["+e.__str__()+"]")
         
     def _listEmpty(self, node):
@@ -186,7 +186,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             else:
                 return False
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error checking for list children ["+e.__str__()+"]")
         
     def _list(self, node):
@@ -199,11 +199,11 @@ class SQLitePwmanDatabase(PwmanDatabase):
             nodes = []
             row = self._cur.fetchone()
             while (row != None):
-                nodes.append(PwmanDatabaseNode(row[0], node, row[1], True))
+                nodes.append(DatabaseNode(row[0], node, row[1], True))
                 row = self._cur.fetchone()
             return nodes
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException("SQLite: " + e)
+            raise DatabaseException("SQLite: " + e)
 
     def _exists(self, node):
         try:
@@ -218,7 +218,7 @@ class SQLitePwmanDatabase(PwmanDatabase):
             else:
                 return True
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error checking existance of node ["+e.__str__()+"]")
 
     def _checkTables(self):
@@ -255,10 +255,10 @@ class SQLitePwmanDatabase(PwmanDatabase):
             self._cur.execute(sql, values)
             id = self._cur.fetchone()
             if (id == None):
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Node does not exist")
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error getting node id ["+e.__str__()+"]")
         return id
 
@@ -274,11 +274,11 @@ class SQLitePwmanDatabase(PwmanDatabase):
                               (parent.getType(), parent.getCryptedName(), parentid))
             row = self._cur.fetchone()
             if (row == None):
-                raise PwmanDatabaseException(
+                raise DatabaseException(
                     "SQLite: Path does not exist")
             parentid = row[0]
         except sqlite.DatabaseError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: Error finding parent id ["+e.__str__()+"]")
         return parentid
             
