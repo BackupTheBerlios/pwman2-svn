@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-from pwdb.PwmanDatabase import PwmanDatabaseException
-import pwdb.PwmanDatabaseFactory
+from pwlib.db.Database import DatabaseException
+import pwlib.db.DatabaseFactory
 
 params = {'type': 'SQLite', 'filename':'/tmp/test.db'}
 
-db = pwdb.PwmanDatabaseFactory.create(params)
+db = pwlib.db.DatabaseFactory.create(params)
 db.open()
 
 db.put("Foobar", "Foobar1Data")
@@ -46,7 +46,7 @@ def printlist(node, prefix=""):
     nodelist = db.list(node.__str__())
     for node in nodelist:
         print prefix+"Name: " + node.getName() + "\tType: " + node.getType()
-        if (node.getType() == pwdb.PwmanDatabase.LIST):
+        if (node.getType() == pwlib.db.Database.LIST):
             printlist(node, prefix+"\t")
 
 printlist("/")
