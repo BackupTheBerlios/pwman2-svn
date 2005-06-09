@@ -7,7 +7,7 @@ DatabaseNode contains the path. It can be either a password or a list.
 DatabaseData contains the data which is actually stored.
 """
 import os.path
-import pwlib.util.CryptoEngine as CryptoEngine
+import pwman.util.CryptoEngine as CryptoEngine
 
 """Constants used to define the node types"""
 PW = 'PASSWORD'

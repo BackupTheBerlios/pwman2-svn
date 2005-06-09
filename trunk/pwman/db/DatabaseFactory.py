@@ -8,8 +8,8 @@ db = DBFactory.create(params)
 db.open()
 .....
 """
-from pwlib.db.Database import Database, DatabaseException
-from pwlib.db.drivers import SQLiteDatabase
+from pwman.db.Database import Database, DatabaseException
+from pwman.db.drivers import SQLiteDatabase
 
 def create(params):
     """

@@ -1,5 +1,5 @@
 """SQLite PwmanDatabase implementation."""
-from pwlib.db.Database import Database,DatabaseException,DatabaseNode, \
+from pwman.db.Database import Database,DatabaseException,DatabaseNode, \
      DatabaseData,PW,LIST
 from pysqlite2 import dbapi2 as sqlite
 
