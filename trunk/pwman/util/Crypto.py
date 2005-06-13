@@ -20,6 +20,7 @@ plaintext = cyypto.decrypt(ciphertext)
 
 """
 from Crypto.Cipher import *
+from Crypto.Util.randpool import RandomPool
 import cPickle,base64,time
 
 _instance = None
@@ -61,9 +62,14 @@ class CryptoBadKeyException(CryptoException):
     def __str__(self):
         return "CryptoBadKeyException: " + self.message
 
+class CryptoNewKeyException(CryptoException):
+    """No key has been initalised."""
+    def __str__(self):
+        return "CryptoNoKeyException: " + self.message
+    
 class Callback:
     """Callback interface. Callback classes must implement this."""
-    def execute(self):
+    def execute(self, question):
         """Return key"""
         pass
     
@@ -75,13 +81,23 @@ class CryptoEngine:
 
         params is a dictionary. Valid keys are:
         encryptionAlgorithm: Which cipher to use
-        encryptionCallback:  Callback class. 
+        encryptionCallback:  Callback class.
+        encryptionKeyCrypted: This should be set by the database layer.
         encryptionTimeout:   Time after which key will be forgotten.
                              Default is -1 (disabled).
         """
+
+        try:
+            self._algo = params['encryptionAlgorithm']
+            self._callback = params['encryptionCallback']
+        except KeyError, e:
+            raise CryptoException("Parameters missing ["+str(e)+"]")
         
-        self._algo = params['encryptionAlgorithm']
-        self._callback = params['encryptionCallback']
+        try:
+            self._keyCrypted = params['encryptionKeyCrypted']
+        except KeyError:
+            self._keyCrypted = None
+            
         try:
             self._timeout = params['encryptionTimeout']
         except KeyError:
@@ -114,40 +130,75 @@ class CryptoEngine:
             raise CryptoBadKeyException("Error decrypting, bad key")
         return cPickle.loads(plaintext)
 
+    def changePassword():
+        """
+        Creates a new key. The key itself is actually stored in
+        the database in crypted form. This key is encrypted using the
+        password that the user provides. This makes it easy to change the
+        password for the database.
+        If oldKeyCrypted is none, then a new password is generated."""
+        if (self._keyCrypted == None):
+            # Generate a new key, 32 bits in length, if that's
+            # too long for the Cipher, _getCipherReal will sort it out
+            random = RandomPool()
+            key = random.get_bytes(32)
+        else:
+            password = self._callback.execute("Please enter your current password")
+            cipher = self._getCipherReal(password, self._algo)
+            key = cipher.decrypt(self._keyCrypted)
+        newpassword1 = self._callback.execute("Please enter your new password");
+        newpassword2 = self._callback.execute("Please enter your new password again");
+        if (newpassword1 != newpassword2):
+            raise CryptoException("Passwords do not match")
+        newcipher = self._getCipherReal(newpassword1, self._algo)
+        self._keyCrypted = new_cipher.encrypt(key)
+        return self._keyCrypted
+
     def _getCipher(self):
         if (self._cipher != None and self._timeout != -1
             and (time.time() - CryptoEngine._timeoutCount) < self._timeout):
             return self._cipher
-        key = self._callback.execute()
-        if (self._algo == "AES"):
+
+        if (self._keyCrypted == None):
+            raise CryptoNewKeyException("Encryption key has not been generated")
+        
+        password = self._callback.execute("Please enter your password")
+        tmpcipher = self._getCipherReal(password, self._algo)
+        key = tmpcipher.decrypt(self._keyCrypted)
+        
+        return self._getCipherReal(self, key, self._algo)
+        
+
+    def _getCipherReal(self, key, algo):
+        if (algo == "AES"):
             key = self._padKey(key, [16, 24, 32])
-            self._cipher = AES.new(key, AES.MODE_ECB)
-        elif (self._algo == 'ARC2'):
-            self._cipher = ARC2.new(key, ARC2.MODE_ECB)
-        elif (self._algo == 'ARC4'):
+            cipher = AES.new(key, AES.MODE_ECB)
+        elif (algo == 'ARC2'):
+            cipher = ARC2.new(key, ARC2.MODE_ECB)
+        elif (algo == 'ARC4'):
             raise CryptoUnsupportedException("ARC4 is currently unsupported")
-        elif (self._algo == 'Blowfish'):
-            self._cipher = Blowfish.new(key, Blowfish.MODE_ECB)
-        elif (self._algo == 'CAST'):
-            self._cipher = CAST.new(key, CAST.MODE_ECB)
-        elif (self._algo == 'DES'):
-            key = self._padKey(key, [8])
-            self._cipher = DES.new(key, DES.MODE_ECB)
-        elif (self._algo == 'DES3'):
+        elif (algo == 'Blowfish'):
+            cipher = Blowfish.new(key, Blowfish.MODE_ECB)
+        elif (algo == 'CAST'):
+            cipher = CAST.new(key, CAST.MODE_ECB)
+        elif (algo == 'DES'):
+            self._padKey(key, [8])
+            cipher = DES.new(key, DES.MODE_ECB)
+        elif (algo == 'DES3'):
             key = self._padKey(key, [16, 24])
-            self._cipher = DES3.new(key, DES3.MODE_ECB)
-        elif (self._algo == 'IDEA'):
+            cipher = DES3.new(key, DES3.MODE_ECB)
+        elif (algo == 'IDEA'):
             key = self._padKey(key, [16])
-            self._cipher = IDEA.new(key, IDEA.MODE_ECB)
-        elif (self._algo == 'RC5'):
-            self._cipher = RC5.new(key, RC5.MODE_ECB)
-        elif (self._algo == 'XOR'):
+            cipher = IDEA.new(key, IDEA.MODE_ECB)
+        elif (algo == 'RC5'):
+            cipher = RC5.new(key, RC5.MODE_ECB)
+        elif (algo == 'XOR'):
             raise CryptoUnsupportedException("XOR is currently unsupported")
         else:
             raise CryptoException("Invalid algorithm specified")        
         CryptoEngine._timeoutCount = time.time()
         
-        return self._cipher
+        return cipher
 
     def _padKey(self, key, acceptable_lengths):
         maxlen = max(acceptable_lengths)
