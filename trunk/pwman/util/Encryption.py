@@ -28,22 +28,6 @@ _instance = None
 # Use this to tell if crypto is successful or not
 _TAG = "PWMANCRYPTO"
 
-def init(params):
-    """
-    Initialise an instance of CryptoEngine. Must be called before get().
-    """
-    global _instance
-    _instance = CryptoEngine(params)
-
-def get():
-    """
-    get() -> CryptoEngine
-    Return an instance of CryptoEngine.
-    If no instance is found, a CryptoException is raised.
-    """
-    if (_instance == None):
-        raise CryptoException("No instance found, init not called?")
-    return _instance
 
 class CryptoException(Exception):
     """Generic Crypto Exception."""
@@ -62,7 +46,7 @@ class CryptoBadKeyException(CryptoException):
     def __str__(self):
         return "CryptoBadKeyException: " + self.message
 
-class CryptoNewKeyException(CryptoException):
+class CryptoNoKeyException(CryptoException):
     """No key has been initalised."""
     def __str__(self):
         return "CryptoNoKeyException: " + self.message
@@ -76,6 +60,21 @@ class Callback:
 class CryptoEngine:
     """Cryptographic Engine"""
     _timeoutCount = 0
+    _instance = None
+
+    @classmethod
+    def get(cls, params=None):
+        """
+        get() -> CryptoEngine
+        Return an instance of CryptoEngine.
+        If no instance is found, a CryptoException is raised.
+        """
+        if (CryptoEngine._instance == None and params == None):
+            raise CryptoException("No instance found, init not called?")
+        elif (CryptoEngine._instance == None):
+            CryptoEngine._instance = CryptoEngine(params)
+        return CryptoEngine._instance
+    
     def __init__(self, params):
         """Initialise the Cryptographic Engine
 
@@ -122,6 +121,7 @@ class CryptoEngine:
         If key is bad, a CryptoBadKeyException is raised
         Can also raise a CryptoException and CryptoUnsupportedException"""
         cipher = self._getCipher()
+        print ciphertext
         b64u_ciphertext = base64.b64decode(ciphertext)
         plaintext = cipher.decrypt(b64u_ciphertext)
         if (plaintext.startswith(_TAG)):
@@ -130,7 +130,7 @@ class CryptoEngine:
             raise CryptoBadKeyException("Error decrypting, bad key")
         return cPickle.loads(plaintext)
 
-    def changePassword():
+    def changePassword(self):
         """
         Creates a new key. The key itself is actually stored in
         the database in crypted form. This key is encrypted using the
@@ -145,13 +145,19 @@ class CryptoEngine:
         else:
             password = self._callback.execute("Please enter your current password")
             cipher = self._getCipherReal(password, self._algo)
-            key = cipher.decrypt(self._keyCrypted)
+            key = cipher.decrypt(base64.b64decode(self._keyCrypted))
         newpassword1 = self._callback.execute("Please enter your new password");
         newpassword2 = self._callback.execute("Please enter your new password again");
         if (newpassword1 != newpassword2):
             raise CryptoException("Passwords do not match")
         newcipher = self._getCipherReal(newpassword1, self._algo)
-        self._keyCrypted = new_cipher.encrypt(key)
+        self._keyCrypted = base64.b64encode(newcipher.encrypt(key))
+
+        # we also want to create the cipher if there isn't one already
+        # so this CryptoEngine can be used from now on
+        if (self._cipher == None):
+            self._cipher = self._getCipherReal(key, self._algo)
+
         return self._keyCrypted
 
     def _getCipher(self):
@@ -160,13 +166,14 @@ class CryptoEngine:
             return self._cipher
 
         if (self._keyCrypted == None):
-            raise CryptoNewKeyException("Encryption key has not been generated")
+            raise CryptoNoKeyException("Encryption key has not been generated")
         
         password = self._callback.execute("Please enter your password")
         tmpcipher = self._getCipherReal(password, self._algo)
-        key = tmpcipher.decrypt(self._keyCrypted)
+        key = tmpcipher.decrypt(base64.b64decode(self._keyCrypted))
         
-        return self._getCipherReal(self, key, self._algo)
+        self._cipher = self._getCipherReal(key, self._algo)
+        return self._cipher
         
 
     def _getCipherReal(self, key, algo):
