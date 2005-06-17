@@ -8,8 +8,8 @@ db = DBFactory.create(params)
 db.open()
 .....
 """
-from pwman.db.Database import Database, DatabaseException
-from pwman.db.drivers import SQLiteDatabase
+from pwman.db.database import Database, DatabaseException
+from pwman.db.drivers import sqlite
 
 def create(params):
     """
@@ -20,7 +20,7 @@ def create(params):
     'type' can only be 'SQLite' at the moment
     """
     try:
-        type = params['type']
+        type = params['Database']['type']
     except KeyError:
         raise DatabaseException("No Database type specified")
 
@@ -28,7 +28,7 @@ def create(params):
         pass
 #        db = BerkeleyDatabase.BerkeleyDatabase(params)
     elif (type == "SQLite"):
-        db = SQLiteDatabase.SQLiteDatabase(params)
+        db = sqlite.SQLiteDatabase(params)
     else:
         raise DatabaseException("Unknown database type specified")
     return db

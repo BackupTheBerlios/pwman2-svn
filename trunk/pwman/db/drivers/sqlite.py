@@ -1,5 +1,5 @@
 """SQLite PwmanDatabase implementation."""
-from pwman.db.Database import Database,DatabaseException,DatabaseNode, \
+from pwman.db.database import Database,DatabaseException,DatabaseNode, \
      DatabaseData,PW,LIST
 from pysqlite2 import dbapi2 as sqlite
 
@@ -14,29 +14,29 @@ class SQLiteDatabase(Database):
 
         self._nodetable = 'NODES';
         self._datatable = 'DATA';
-        
+        self._keytable = 'KEYS';
         try:
-            self._filename = params['filename']
+            self._filename = params['Database']['filename']
         except KeyError, e:
-            raise PwmanDatabaseException(
+            raise DatabaseException(
                 "SQLite: missing parameter ["+e+"]")
 
     def _open(self):
         try:
             self._con = sqlite.connect(self._filename)
             self._cur = self._con.cursor()
-            self._checkTables()
+            self._checktables()
         except sqlite.DatabaseError, e:
             raise DatabaseException("SQLite: " + e.__str__())
         
 
     def _put(self, node, data):
-        if (node.getType() != PW):
+        if (node.get_type() != PW):
             raise DatabaseException(
                 "SQLite: Invalid node, not a password");
 
         if self._exists(node):
-            id = self._getNodeId(node)
+            id = self._get_nodeid(node)
         else:
             id = 0
 
@@ -44,8 +44,8 @@ class SQLiteDatabase(Database):
         if id == 0:
             sql = "INSERT INTO "+self._nodetable \
                   +"(DATATYPE, NODENAME, PARENT)  VALUES(?, ?, ?)"
-            values = (node.getType(), node.getCryptedName(),
-                      self._getParentId(node))
+            values = (node.get_type(), node.get_cryptedname(),
+                      self._get_parentid(node))
             try:
                 self._cur.execute(sql, values)
             except sqlite.DatabaseError, e:
@@ -53,7 +53,7 @@ class SQLiteDatabase(Database):
                     "SQLite: Error creating node in db ["+e.__str__()+"]")
 
             sql = "INSERT INTO "+self._datatable+" VALUES(?, ?)"
-            values = (self._cur.lastrowid, data.getCryptedData());
+            values = (self._cur.lastrowid, data.get_crypteddata());
 
             # insert the data into the database
             try:
@@ -63,7 +63,7 @@ class SQLiteDatabase(Database):
                     "SQLite: Error creating data in db ["+e+"]")
         else:
             sql = "UPDATE "+self._datatable+" SET DATA=? WHERE ID=?"
-            values = (data.getCryptedData(), id)
+            values = (data.get_crypteddata(), id)
 
             # update database with new data
             try:
@@ -79,7 +79,7 @@ class SQLiteDatabase(Database):
                 "SQLite: Error commiting data to db ["+e+"]")
 
     def _get(self, node):
-        if (node.getType() != PW):
+        if (node.get_type() != PW):
             raise DatabaseException(
                 "SQLite: Invalid node, not password");
 
@@ -87,8 +87,8 @@ class SQLiteDatabase(Database):
               +" INNER JOIN "+self._datatable+" ON " \
               +self._nodetable+".ID = "+self._datatable+".ID " \
               +"WHERE DATATYPE = ? AND NODENAME = ? AND PARENT = ?"
-        values = (node.getType(), node.getCryptedName(), \
-                  self._getParentId(node))
+        values = (node.get_type(), node.get_cryptedname(), \
+                  self._get_parentid(node))
         try:
             self._cur.execute(sql, values)
             data = self._cur.fetchone()
@@ -103,12 +103,12 @@ class SQLiteDatabase(Database):
                 "SQLite: Error reading node from db ["+e+"]")
 
     def _delete(self, node):
-        if (node.getType() != PW):
+        if (node.get_type() != PW):
             raise DatabaseException(
                 "SQLite: Invalid node, not password");
         
         # get the id
-        id = self._getNodeId(node)
+        id = self._get_nodeid(node)
 
         # delete the node from the db
         try:
@@ -132,14 +132,14 @@ class SQLiteDatabase(Database):
         self._cur.close()
         self._con.close()
 
-    def _makeList(self, node):
-        if (node.getType() != LIST):
+    def _makelist(self, node):
+        if (node.get_type() != LIST):
             raise DatabaseException(
                 "SQLite: Invalid node, not a list");
         sql = "INSERT INTO "+self._nodetable \
               +"(DATATYPE, NODENAME, PARENT)  VALUES(?, ?, ?)"
-        values = (node.getType(), node.getCryptedName(),
-                  self._getParentId(node))
+        values = (node.get_type(), node.get_cryptedname(),
+                  self._get_parentid(node))
         try:
             self._cur.execute(sql, values)
             self._con.commit()
@@ -147,13 +147,13 @@ class SQLiteDatabase(Database):
             raise DatabaseException(
                 "SQLite: Error creating list ["+e.__str__()+"]")
 
-    def _removeList(self, node):
-        if (node.getType() != LIST):
+    def _removelist(self, node):
+        if (node.get_type() != LIST):
             raise DatabaseException(
                 "SQLite: Invalid node, not a list");
         
         # Find id of list to be deleted
-        id = self._getNodeId(node)
+        id = self._get_nodeid(node)
 
         # we delete the list from the database
         try:
@@ -171,9 +171,9 @@ class SQLiteDatabase(Database):
             raise DatabaseException(
                 "SQLite: Error committing list removal ["+e.__str__()+"]")
         
-    def _listEmpty(self, node):
+    def _listempty(self, node):
         # Find id of list to be deleted
-        id = self._getNodeId(node)
+        id = self._get_nodeid(node)
         
         # check if list has children
         sql = "SELECT COUNT(*) FROM "+self._nodetable+" WHERE PARENT = ?"
@@ -191,7 +191,7 @@ class SQLiteDatabase(Database):
         
     def _list(self, node):
         try:
-            id = self._getNodeId(node)
+            id = self._get_nodeid(node)
             sql = "SELECT NODENAME, DATATYPE FROM "+self._nodetable \
                   +" WHERE PARENT = ?";
             self._cur.execute(sql, [id])
@@ -209,8 +209,8 @@ class SQLiteDatabase(Database):
         try:
             sql = "SELECT COUNT(*) FROM "+self._nodetable \
                   +" WHERE DATATYPE=? AND NODENAME=? AND PARENT=?"
-            values = (node.getType(), node.getCryptedName(),
-                      self._getParentId(node))
+            values = (node.get_type(), node.get_cryptedname(),
+                      self._get_parentid(node))
             self._cur.execute(sql, values)
             row = self._cur.fetchone()
             if (row[0] == 0):
@@ -221,7 +221,20 @@ class SQLiteDatabase(Database):
             raise DatabaseException(
                 "SQLite: Error checking existance of node ["+e.__str__()+"]")
 
-    def _checkTables(self):
+    def _savekey(self, key):
+        sql = "UPDATE " + self._keytable + " SET THEKEY = ?"
+        values = [key]
+        self._cur.execute(sql, values)
+
+    def _loadkey(self):
+        self._cur.execute("SELECT THEKEY FROM " + self._keytable);
+        keyrow = self._cur.fetchone()
+        if (keyrow[0] == ''):
+            return None
+        else:
+            return keyrow[0]
+    
+    def _checktables(self):
         """ Check if the Pwman tables exist """
         self._cur.execute("PRAGMA TABLE_INFO("+self._nodetable+")")
         if (self._cur.fetchone() == None):
@@ -236,21 +249,25 @@ class SQLiteDatabase(Database):
             self._cur.execute("CREATE TABLE " + self._datatable
                               + "(ID INTEGER NOT NULL PRIMARY KEY,"
                               + " DATA BLOB NOT NULL)")
+            self._cur.execute("CREATE TABLE " + self._keytable
+                              + "(THEKEY TEXT NOT NULL DEFAULT '')");
+            self._cur.execute("INSERT INTO " + self._keytable
+                              + " VALUES('')");
             try:
                 self._con.commit()
             except DatabaseError, e:
                 self._con.rollback()
                 raise e
 
-    def _getNodeId(self, node):
+    def _get_nodeid(self, node):
         """Returns the id of a node"""
         if (node == None):
             return 0
         
         sql = "SELECT ID FROM "+self._nodetable \
               +" WHERE DATATYPE = ? AND NODENAME = ? AND PARENT = ?"
-        values = (node.getType(), node.getCryptedName(),
-                  self._getParentId(node))
+        values = (node.get_type(), node.get_cryptedname(),
+                  self._get_parentid(node))
         try:
             self._cur.execute(sql, values)
             id = self._cur.fetchone()
@@ -262,16 +279,16 @@ class SQLiteDatabase(Database):
                 "SQLite: Error getting node id ["+e.__str__()+"]")
         return id
 
-    def _getParentId(self, node):
+    def _get_parentid(self, node):
         """Returns the id of a list which this is path points to"""
-        parent = node.getParent()
+        parent = node.get_parent()
         if (parent == None):
             return 0
-        parentid = self._getParentId(parent)
+        parentid = self._get_parentid(parent)
         try:
             self._cur.execute("SELECT ID FROM "+self._nodetable+" WHERE"
                               +" DATATYPE = ? AND NODENAME=? AND PARENT=?",
-                              (parent.getType(), parent.getCryptedName(), parentid))
+                              (parent.get_type(), parent.get_cryptedname(), parentid))
             row = self._cur.fetchone()
             if (row == None):
                 raise DatabaseException(

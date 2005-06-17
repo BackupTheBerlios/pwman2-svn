@@ -7,7 +7,7 @@ DatabaseNode contains the path. It can be either a password or a list.
 DatabaseData contains the data which is actually stored.
 """
 import os.path
-import pwman.util.CryptoEngine as CryptoEngine
+from pwman.util.crypto import CryptoEngine
 
 """Constants used to define the node types"""
 PW = 'PASSWORD'
@@ -35,36 +35,36 @@ class DatabaseNode:
         self._crypto = CryptoEngine.get()
         self._parent = parent
         if (crypted == True):
-            self._setCryptedName(name)
+            self._set_cryptedname(name)
         else:
-            self._setName(name)
+            self._set_name(name)
         if (type == PW or type == LIST):
             self._type = type
         else:
             raise DatabaseException(
                 "Invalid Node type ["+type+"]")
     
-    def _setName(self, name):
+    def _set_name(self, name):
         self._cryptname = self._crypto.encrypt(name)
         self._name = name
 
-    def _setCryptedName(self, name):
+    def _set_cryptedname(self, name):
         self._cryptname = name
         self._name = self._crypto.decrypt(name)
         
-    def getParent(self):
+    def get_parent(self):
         """Return the parent DatabaseNode."""
         return self._parent
 
-    def getName(self):
+    def get_name(self):
         """Return the name of the node in plaintext form."""
         return self._name
 
-    def getType(self):
+    def get_type(self):
         """Return the type of the node."""
         return self._type
     
-    def getCryptedName(self):
+    def get_cryptedname(self):
         """Return the name of the node in ciphertext form."""
         return self._cryptname
 
@@ -84,25 +84,25 @@ class DatabaseData:
         object thats been previously encrypted."""        
         self._crypto = CryptoEngine.get()
         if crypted == True:
-            self._setCryptedData(data)
+            self._set_crypteddata(data)
         else:
-            self._setData(data)
+            self._set_data(data)
 
-    def getData(self):
+    def get_data(self):
         """getData() -> obj
         Return data obj in plaintext."""
         return self._data
 
-    def getCryptedData(self):
+    def get_crypteddata(self):
         """getCryptedData() -> ciphertext
         Return data obj in ciphertext."""
         return self._cryptdata
 
-    def _setData(self, data):
+    def _set_data(self, data):
         self._data = data
         self._cryptdata = self._crypto.encrypt(data)
 
-    def _setCryptedData(self, data):
+    def _set_crypteddata(self, data):
         self._cryptdata = data
         self._data = self._crypto.decrypt(data)
         
@@ -117,76 +117,82 @@ class Database:
     Database._get(node)
     Database._delete(node)
     Database._close()
-    Database._makeList(node)
-    Database._removeList(node)
-    Database._listEmpty(node)
+    Database._makelist(node)
+    Database._removelist(node)
+    Database._listempty(node)
     Database._list(node)
     Database._exists(node)
+    Database._loadkey()
+    Database._savekey(key)
     """
-    
-    def __init__(self, params):
-        """Initial crypto engine. Also sets the current list to "/"."""
-        CryptoEngine.init(params)
-        self.changeList("/") # starts at root
 
+    def __init__(self, params):
+        self._crypto = CryptoEngine.get(params)
+        self.changelist("/") # starts at root
+    
     def open(self):
         """Open the database."""
         self._open()
+        key = self._loadkey()
+        if (key != None):
+            self._crypto.set_cryptedkey(key)
+        else:
+            self.changepassword()
 
     def put(self, path, dataobj):
         """Encrypt dataobj and put it into database under path."""
-        node = self._buildNode(path)
+        node = self._buildnode(path)
         data = DatabaseData(dataobj)
         self._put(node, data)
 
     def get(self, path):
         """Get and decrypt data associated with path."""
-        node = self._buildNode(path)
+        node = self._buildnode(path)
         data = self._get(node)
-        return data.getData()
+        return data.get_data()
 
     def delete(self, path):
         """Delete path and associated data from database."""
-        node = self._buildNode(path)
+        node = self._buildnode(path)
         self._delete(node)
 
     def close(self):
         """Close the database."""
         self._close()
 
-    def makeList(self, path):
+    def makelist(self, path):
         """Make list 'path' in current list."""
-        node = self._buildNode(path, LIST)
+        node = self._buildnode(path, LIST)
         if (not self._exists(node)):
-            self._makeList(node)
+            self._makelist(node)
 
-    def removeList(self, path, recursive=False):
+    def removelist(self, path, recursive=False):
         """Remove list 'path' from current list.
         Will raise DatabaseException if list not empty."""
-        node = self._buildNode(path, LIST)
+        node = self._buildnode(path, LIST)
         # check if list has children
-        if (not self._listEmpty(node) and not recursive):
+        if (not self._listempty(node) and not recursive):
             raise DatabaseException(
                     "Cannot remove list, not empty")
         else:
-            self._recursiveRemoveList(node)
+            self._recursive_removelist(node)
 
-    def _recursiveRemoveList(self, node):
+    def _recursive_removelist(self, node):
         nodelist = self._list(node)
         for i in nodelist:
-            if (i.getType() == LIST):
-                self._recursiveRemoveList(i)
+            if (i.get_type() == LIST):
+                self._recursive_removelist(i)
             else:
                 self._delete(i)
-        self._removeList(node)
+        self._removelist(node)
         
     def list(self, path=None):
         """Returns a array of DatabaseNode objects in list 'path'.
         If path is None, list current."""
         if (path == None):
-            node = self.getCurrentList()
+            node = self.get_currentlist()
         else:
-            node = self._buildNode(path, LIST)
+            node = self._buildnode(path, LIST)
         return self._list(node)
 
     def exists(self, path, type=PW):
@@ -196,18 +202,18 @@ class Database:
         # so shortcut it here
         if (path == "/"):
             return True
-        node = self._buildNode(path, type)
+        node = self._buildnode(path, type)
         return self._exists(node)
 
-    def changeList(self, path):
+    def changelist(self, path):
         """Change to list 'path'."""
-        node = self._buildNode(path, LIST)
+        node = self._buildnode(path, LIST)
         if (node == None or self._exists(node)):
             self._clist = node
         else:
             raise DatabaseException("changeList: List does not exist")
-    
-    def getCurrentList(self):
+        
+    def get_currentlist(self):
         """Returns current list."""
         return self._clist
 
@@ -217,15 +223,15 @@ class Database:
         if (self.exists(source, PW)):
             self.delete(source)
         elif (self.exists(source, LIST)):
-            self.removeList(source, True)
+            self.removelist(source, True)
 
     def copy(self, source, dest):
         """Copy object from source to dest."""
         # check the type of source if it exists
         if (self.exists(source, PW)):
-            snode = self._buildNode(source, PW)
+            snode = self._buildnode(source, PW)
         elif (self.exists(source, LIST)):
-            snode = self._buildNode(source, LIST)
+            snode = self._buildnode(source, LIST)
         else:
             raise DatabaseException("copy: source does not exist")
 
@@ -236,41 +242,46 @@ class Database:
         # if dest is a list and exists, move into it with old name
         # else move it to dest with new name
         if (self.exists(dest, LIST)):
-            path = os.path.join(dest, snode.getName())
-            dnode = self._buildNode(path, snode.getType())
+            path = os.path.join(dest, snode.get_name())
+            dnode = self._buildnode(path, snode.get_type())
         elif (self.exists(dest, PW)):
             raise DatabaseException("copy: cannot overwrite dest")
         else:
-            dnode = self._buildNode(dest, snode.getType())
+            dnode = self._buildnode(dest, snode.get_type())
 
         self._copy(snode, dnode)
 
     def _copy(self, snode, dnode):
-        if (snode.getType() == PW):
+        if (snode.get_type() == PW):
             data = self._get(snode)
             self._put(dnode, data)
         else:
             if (not self._exists(dnode)):
-                self._makeList(dnode)
+                self._makelist(dnode)
                 nodelist = self._list(snode)
                 for i in nodelist:
-                    newdnode = DatabaseNode(i.getName(), dnode, i.getType())
+                    newdnode = DatabaseNode(i.get_name(), dnode, i.get_type())
                     self._copy(i, newdnode)
 
-    def _buildNode(self, path, type=PW):
+    def changepassword(self):
+        """Change the databases password."""
+        newkey = self._crypto.changepassword()
+        return self._savekey(newkey)
+    
+    def _buildnode(self, path, type=PW):
         if (path == ""):
             return None
         if (not path.startswith("/")):
-            clist = self.getCurrentList()
+            clist = self.get_currentlist()
             if (clist == None):
                 path = os.path.join("/", path)
             else:
-                path = os.path.join(self.getCurrentList().__str__(), path)
+                path = os.path.join(str(clist), path)
             path = os.path.normpath(path)
         if (path == "/"):
             return None
         (path, name) = path.rsplit("/", 1)
-        parent = self._buildNode(path, LIST)
+        parent = self._buildnode(path, LIST)
         node = DatabaseNode(name, parent, type)
         return node
 
@@ -292,13 +303,13 @@ class Database:
     def _close(self):
         pass
 
-    def _makeList(self, node):
+    def _makelist(self, node):
         pass
     
-    def _removeList(self, node):
+    def _removelist(self, node):
         pass
         
-    def _listEmpty(self, node):
+    def _listempty(self, node):
         pass
         
     def _list(self, node):
@@ -307,6 +318,9 @@ class Database:
     def _exists(self, node):
         pass
 
+    def _savekey(self, key):
+        pass
         
-        
+    def _loadkey(self):
+        pass
     
