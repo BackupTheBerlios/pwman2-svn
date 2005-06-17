@@ -4,26 +4,68 @@ Based heavily on passogva.py (c) 2004 Mo-Tsuki, LLC.
 http://dev.mosuki.com/passogva/
 
 Usage:
-import pwman.util.Generator as PwGen
+import pwman.util.generator as PwGen
 minlen = 6
 maxlen = 8
 (word, hypenated_word) = PwGen.generate_password(minlen, maxlen)
 """
+import random
 
-class PasswordGeneratorException(Exception):
-    def __init__(self, str):
-        self.message = str
+class PasswordGenerationException(Exception):
+    def __init__(self, message):
+        self.message = message
 
-    def __str(self):
-        return "PasswordGeneratorException: %s" % (str)
+    def __str__(self):
+        return self.message
 
-def generate_password
+def generate_password(minlen, maxlen, capitals = True, symbols = False):
+    (password, hyphenated) = generate_password_shazel(minlen, maxlen)
+    if (capitals):
+        password = randomly_capitalize(password)
+    if (symbols):
+        password = leetify(password)
+    return (password, hyphenated)
+
+def randomly_capitalize(password):
+    newpassword = str()
+    for l in password:
+        if (random.random() >= 0.5):
+            l = l.upper()
+        newpassword = newpassword + l
+    return newpassword
+
+def leetify(password):
+    newpassword = str()
+    for l in password:
+        if (random.random() >= 0.5):
+            l = leetify_char(l)
+        newpassword = newpassword + l
+    return newpassword
+
+#
+# Dictionary of mappings for leetness
+#
+leetlist = {
+    'w': "\/\/", 'W': "\/\/", 'e': '3', 'E': '3', 't': '+', 'T': '7',
+    'i': '1', 'I': '1', 'o': '0', 'O': '0', 'A': '4', 's': '5', 'S': '$',
+    'g': '9', 'K': '|<', 'k': '|<', 'x': '><', 'X': '><', 'c': '<', 'C': '<',
+    'v': '\/', 'V': '\/', 'n': '|\|', 'N': '|\|', 'm': '|\/|', 'M': '|\/|'
+    }
+
+def leetify_char(l):
+    try:
+        return leetlist[l]
+    except KeyError:
+        return l
+    
 #
 # Beyond this point layeth Steve Hazel's code
 # Steven Hazel <sah@mosuki.com>
 #
-# I've changed the random generator and added exceptions
+# I've added exceptions
 #
+MIN_LENGTH_PASSWORD = 6
+MAX_LENGTH_PASSWORD = 14
 
 grams = ('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
          'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
@@ -40,7 +82,7 @@ occurrence_frequencies = {
     'v'  :  8,      'w'  :  8,      'x'  :  1,      'y'  :  8,
     'z'  :  1,      'ch' :  1,      'gh' :  1,      'ph' :  1,
     'rh' :  1,      'sh' :  2,      'th' :  1,      'wh' :  1,
-    'qu' :  1,      'ck' :  1,}
+    'qu' :  1,      'ck' :  1}
 
 numbers = []
 for gram in grams:
@@ -1339,20 +1381,18 @@ def marked(flag, first_unit, second_unit):
 # Generates a random word, as well as its hyphenated form.  The
 # length of the returned word will be between minlen and maxlen.
 
-def generate_password(minlen = MIN_LENGTH_PASSWORD,
+def generate_password_shazel(minlen = MIN_LENGTH_PASSWORD,
                       maxlen = MAX_LENGTH_PASSWORD):
 
     if (minlen > maxlen):
-        print "minlen minlen is greater than maxlen maxlen\n"
-        return ('','')
-
+        raise PasswordGenerationException("minlen minlen is greater than maxlen maxlen.")
 
     #
     # Check for zero length words.  This is technically not an error,
     # so we take the short cut and return empty words.
     #
     if (maxlen == 0):
-        return ('','')
+        raise PasswordGenerationException("maxlen must be greater than 0.")
 
 
     word = ''
@@ -1365,8 +1405,8 @@ def generate_password(minlen = MIN_LENGTH_PASSWORD,
 
 
     if (word == "" and (minlen > 0)):
-        print "failed to generate an acceptable random password.\n"
-        return ('','')
+        raise PasswordGenerationException("failed to generate an acceptable random password.")
+
 
 
     return (word, hyphenated_word)
