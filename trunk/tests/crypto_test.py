@@ -1,29 +1,40 @@
-import pwdb.CryptoEngine
+from pwman.util.crypto import CryptoEngine, Callback, CryptoNoKeyException
+import getpass
+import sys
 
 class foo:
     def bar(self):
         print "woo yay!"
 
-class callback(pwdb.CryptoEngine.Callback):
-    def execute(self):
-        return "foobar!"
+class callback(Callback):
+    def execute(self, question):
+        return getpass.getpass(question + ":")
 
 algo = "AES"
 
-params = {'encryptionAlgorithm': algo,
-          'encryptionCallback': callback()}
+params = {'Encryption': { 'algorithm': algo,
+                          'callback': callback() }
+          }
 
-pwdb.CryptoEngine.init(params)
-
-crypto = pwdb.CryptoEngine.get()
+crypto = CryptoEngine.get(params)
 
 x = foo()
 x.bar()
 
-str = crypto.encrypt(x)
+key = None
+ciphertext = None
+try:
+    ciphertext = crypto.encrypt(x)
+except CryptoNoKeyException, e:
+    key = crypto.changepassword()
+    ciphertext = crypto.encrypt(x)
 
-print str
+print 'Change the password'
+key = crypto.changepassword()
 
-y = crypto.decrypt(str)
+if (key != None):
+    print "Key: %s" % (key)
+print "CipherText: %s" % (ciphertext)
 
+y = crypto.decrypt(ciphertext)
 y.bar()

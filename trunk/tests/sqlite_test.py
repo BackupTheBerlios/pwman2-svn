@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
-from pwlib.db.Database import DatabaseException
-import pwlib.db.DatabaseFactory
+from pwman.db.database import DatabaseException
+import pwman.db.factory
 
-params = {'type': 'SQLite', 'filename':'/tmp/test.db'}
+params = {'Database': {'type': 'SQLite',
+                       'filename':'/tmp/test.db'}
+          }
 
-db = pwlib.db.DatabaseFactory.create(params)
+db = pwman.db.factory.create(params)
 db.open()
 
 db.put("Foobar", "Foobar1Data")
@@ -26,27 +28,27 @@ db.delete("Foobar1")
 db.delete("Foobar3")
 #db.delete("FoobarX")
 
-db.makeList("FoobarList1")
-db.makeList("FoobarList2")
-db.makeList("FoobarList3")
+db.makelist("FoobarList1")
+db.makelist("FoobarList2")
+db.makelist("FoobarList3")
 
-db.changeList("FoobarList1")
+db.changelist("FoobarList1")
 db.put("FoobarSub", "FoobarSubData")
 db.put("FoobarSub2", "FoobarSub2Data")
 db.put("../FoobarSub", "Foobar")
-db.makeList("SubSublist")
-db.changeList("..")
-db.changeList("/FoobarList1/SubSublist")
+db.makelist("SubSublist")
+db.changelist("..")
+db.changelist("/FoobarList1/SubSublist")
 db.put("FoobarSub3", "FoobarSubData")
 db.put("FoobarSub4", "FoobarSub2Data")
 
-db.removeList("/FoobarList2")
+db.removelist("/FoobarList2")
 
 def printlist(node, prefix=""):
     nodelist = db.list(node.__str__())
     for node in nodelist:
-        print prefix+"Name: " + node.getName() + "\tType: " + node.getType()
-        if (node.getType() == pwlib.db.Database.LIST):
+        print prefix+"Name: " + node.get_name() + "\tType: " + node.get_type()
+        if (node.get_type() == pwman.db.database.LIST):
             printlist(node, prefix+"\t")
 
 printlist("/")
