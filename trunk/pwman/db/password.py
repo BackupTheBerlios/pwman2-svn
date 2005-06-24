@@ -2,12 +2,12 @@
 
 class Password:
     """The password class."""
-    def __init__(self,username=None,password=None,url=None,notes=None):
+    def __init__(self,username="",password="",url="",notes=""):
         """Initialise everything to null."""
-        self._username = None
-        self._password = None
-        self._url = None
-        self._notes = None
+        self._username = username
+        self._password = password
+        self._url = url
+        self._notes = notes
     
     def get_username(self):
         """Return the username."""

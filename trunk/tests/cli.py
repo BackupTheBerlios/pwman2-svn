@@ -1,4 +1,4 @@
-from pwman.ui.cli import PwmanCLI
+from pwman.ui.cli import PwmanCli
 from pwman.db import factory
 
 params = {'Database' : {'type': 'SQLite', 'filename':'/tmp/test.db'},
@@ -6,5 +6,5 @@ params = {'Database' : {'type': 'SQLite', 'filename':'/tmp/test.db'},
 
 db = factory.create(params)
 
-cli = PwmanCLI(db)
+cli = PwmanCli(params, db)
 cli.cmdloop()
