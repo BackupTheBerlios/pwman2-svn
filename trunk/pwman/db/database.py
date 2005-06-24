@@ -7,7 +7,7 @@ DatabaseNode contains the path. It can be either a password or a list.
 DatabaseData contains the data which is actually stored.
 """
 import os.path
-from pwman.util.crypto import CryptoEngine
+from pwman.util.crypto import CryptoEngine, CryptoNoKeyException
 
 """Constants used to define the node types"""
 PW = 'PASSWORD'
@@ -18,8 +18,40 @@ class DatabaseException(Exception):
     def __init__(self, message):
         self.message = message
     def __str__(self):
-        return "DatabaseException: " + self.message
+        return "DatabaseException: %s" % (self.message)
 
+class DatabaseCopyException(DatabaseException):
+    """Exception copying in database"""
+    def __str__(self):
+        return "DatabaseCopyException: %s" % (self.message)
+    
+class DatabaseNodeException(DatabaseException):
+    """Exception raised by node operation"""
+    def __init__(self, message, node):
+        self.message = message
+        self.node = node
+        
+    def getnode():
+        return self.node
+
+    def __str__(self):
+        return "DatabaseNodeException: %s (%s)" % (self.message, self.node)
+
+class DatabaseNoSuchNodeException(DatabaseNodeException):
+    """Exception raised when node does not exist"""
+    def __str__(self):
+        return "DatabaseNoSuchNodeException: %s (%s)" % (self.message, self.node)
+
+class DatabaseInvalidNodeException(DatabaseNodeException):
+    """Exception raised when invalid node is used"""
+    def __str__(self):
+        return "DatabaseInvalidNodeException: %s (%s)" % (self.message, self.node)
+
+class DatabaseListNotEmptyException(DatabaseNodeException):
+    """Exception raised when a list is not empty"""
+    def __str__(self):
+        return "DatabaseListNotEmptyException: %s (%s)" % (self.message, self.node)
+    
 class DatabaseNode:
     """
     DatabaseNode contains the path to a node, and its type.
@@ -41,9 +73,9 @@ class DatabaseNode:
         if (type == PW or type == LIST):
             self._type = type
         else:
-            raise DatabaseException(
-                "Invalid Node type ["+type+"]")
-    
+            raise DatabaseInvalidNodeException(
+                "Trying to create an invalid node", None)
+        
     def _set_name(self, name):
         self._cryptname = self._crypto.encrypt(name)
         self._name = name
@@ -144,18 +176,18 @@ class Database:
         node = self._buildnode(path)
         data = DatabaseData(dataobj)
         self._put(node, data)
-
+        
     def get(self, path):
         """Get and decrypt data associated with path."""
         node = self._buildnode(path)
         data = self._get(node)
         return data.get_data()
-
+        
     def delete(self, path):
         """Delete path and associated data from database."""
         node = self._buildnode(path)
         self._delete(node)
-
+        
     def close(self):
         """Close the database."""
         self._close()
@@ -172,8 +204,8 @@ class Database:
         node = self._buildnode(path, LIST)
         # check if list has children
         if (not self._listempty(node) and not recursive):
-            raise DatabaseException(
-                    "Cannot remove list, not empty")
+            raise DatabaseListNotEmptyException(
+                "Cannot remove list", node)
         else:
             self._recursive_removelist(node)
 
@@ -190,11 +222,11 @@ class Database:
         """Returns a array of DatabaseNode objects in list 'path'.
         If path is None, list current."""
         if (path == None):
-            node = self.get_currentlist()
+            node = self._clist
         else:
             node = self._buildnode(path, LIST)
         return self._list(node)
-
+        
     def exists(self, path, type=PW):
         """exists(path, type=PW) -> bool
         Check if `path` exists."""
@@ -203,19 +235,23 @@ class Database:
         if (path == "/"):
             return True
         node = self._buildnode(path, type)
-        return self._exists(node)
 
+        return self._exists(node)
+        
     def changelist(self, path):
         """Change to list 'path'."""
         node = self._buildnode(path, LIST)
         if (node == None or self._exists(node)):
             self._clist = node
         else:
-            raise DatabaseException("changeList: List does not exist")
-        
+            raise DatabaseNoSuchNodeException("List does not exist", node)
+
     def get_currentlist(self):
         """Returns current list."""
-        return self._clist
+        if (self._clist == None):
+            return "/"
+        else:
+            return self._clist
 
     def move(self, source, dest):
         """Move object from source to dest."""
@@ -233,11 +269,11 @@ class Database:
         elif (self.exists(source, LIST)):
             snode = self._buildnode(source, LIST)
         else:
-            raise DatabaseException("copy: source does not exist")
+            raise DatabaseNoSuchNodeException("Source does not exist", None)
 
         # someone is trying to copy the root node, can't be doing that
         if (snode == None):
-            raise DatabaseException("copy: cannot copy root list")
+            raise DatabaseCopyException("Cannot copy root list")
             
         # if dest is a list and exists, move into it with old name
         # else move it to dest with new name
@@ -245,7 +281,7 @@ class Database:
             path = os.path.join(dest, snode.get_name())
             dnode = self._buildnode(path, snode.get_type())
         elif (self.exists(dest, PW)):
-            raise DatabaseException("copy: cannot overwrite dest")
+            raise DatabaseCopyException("Cannot overwrite destination")
         else:
             dnode = self._buildnode(dest, snode.get_type())
 
@@ -267,12 +303,18 @@ class Database:
         """Change the databases password."""
         newkey = self._crypto.changepassword()
         return self._savekey(newkey)
-    
+
+    def get_cryptocallback(self):
+        return self._crypto.get_callback()
+
+    def set_cryptocallback(self, callback):
+        self._crypto.set_callback(callback)
+        
     def _buildnode(self, path, type=PW):
         if (path == ""):
             return None
         if (not path.startswith("/")):
-            clist = self.get_currentlist()
+            clist = self._clist
             if (clist == None):
                 path = os.path.join("/", path)
             else:
@@ -282,8 +324,13 @@ class Database:
             return None
         (path, name) = path.rsplit("/", 1)
         parent = self._buildnode(path, LIST)
-        node = DatabaseNode(name, parent, type)
-        return node
+        try:
+            node = DatabaseNode(name, parent, type)
+            return node
+        except CryptoNoKeyException:
+            self.changepassword()
+            print type
+            return self._buildnode(path, type)
 
     ##
     ## methods that need to be implemented by subclasses

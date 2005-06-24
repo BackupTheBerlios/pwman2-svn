@@ -2,41 +2,41 @@
 
 class Password:
     """The password class."""
-    def __init__(self):
+    def __init__(self,username=None,password=None,url=None,notes=None):
         """Initialise everything to null."""
         self._username = None
         self._password = None
         self._url = None
         self._notes = None
     
-    def getUsername(self):
+    def get_username(self):
         """Return the username."""
         return self._username
 
-    def setUsername(self, username):
+    def set_username(self, username):
         """Set the username."""
         self._username = username
 
-    def getPassword(self):
+    def get_password(self):
         """Return the password."""
         return self._password
 
-    def setPassword(self, password):
+    def set_password(self, password):
         """Set the password."""
         self._password = password
 
-    def getUrl(self):
+    def get_url(self):
         """Return the URL."""
         return self._url
 
-    def setUrl(self, url):
+    def set_url(self, url):
         """Set the URL."""
         self._url = url
 
-    def getNotes(self):
+    def get_notes(self):
         """Return the Notes."""
         return self._notes
 
-    def setNotes(self, notes):
+    def set_notes(self, notes):
         """Set the Notes."""
         self._notes = notes

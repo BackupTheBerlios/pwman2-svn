@@ -23,6 +23,7 @@ x.bar()
 
 key = None
 ciphertext = None
+
 try:
     ciphertext = crypto.encrypt(x)
 except CryptoNoKeyException, e:

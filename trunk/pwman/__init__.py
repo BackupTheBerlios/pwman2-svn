@@ -1,0 +1,5 @@
+appname = "Pwman2"
+version = "0.0.1"
+website = "http://pwman.sourceforge.net/"
+author = "Ivan Kelly"
+authoremail = "ivan@ivankelly.net"

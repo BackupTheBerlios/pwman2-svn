@@ -50,6 +50,16 @@ class CryptoNoKeyException(CryptoException):
     """No key has been initalised."""
     def __str__(self):
         return "CryptoNoKeyException: " + self.message
+
+class CryptoNoCallbackException(CryptoException):
+    """No Callback has been set."""
+    def __str__(self):
+        return "CryptoNoCallbackException: " + self.message
+
+class CryptoPasswordMismatchException(CryptoException):
+    """Entered passwords do not match."""
+    def __str__(self):
+        return "CryptoPasswordMismatchException: " + self.message
     
 class Callback:
     """Callback interface. Callback classes must implement this."""
@@ -61,7 +71,8 @@ class CryptoEngine:
     """Cryptographic Engine"""
     _timeoutcount = 0
     _instance = None
-
+    _callback = None
+    
     @classmethod
     def get(cls, params=None):
         """
@@ -92,9 +103,13 @@ class CryptoEngine:
         try:
             encparams =  params['Encryption']
             self._algo = encparams['algorithm']
-            self._callback = encparams['callback']
         except KeyError, e:
             raise CryptoException("Parameters missing [%s]" % (e) )
+
+        try:
+            self._callback = encparams['callback']
+        except KeyError:
+            self._callback = None
         
         try:
             self._keycrypted = encparams['keycrypted']
@@ -133,6 +148,12 @@ class CryptoEngine:
 
     def get_cryptedkey(self):
         return self._keycrypted
+
+    def set_callback(self, callback):
+        self._callback = callback
+
+    def get_callback(self):
+        return self._callback
     
     def changepassword(self):
         """
@@ -141,6 +162,8 @@ class CryptoEngine:
         password that the user provides. This makes it easy to change the
         password for the database.
         If oldKeyCrypted is none, then a new password is generated."""
+        if (self._callback == None):
+            raise CryptoNoCallbackException("No call back class has been specified")
         if (self._keycrypted == None):
             # Generate a new key, 32 bits in length, if that's
             # too long for the Cipher, _getCipherReal will sort it out
@@ -154,7 +177,7 @@ class CryptoEngine:
         newpassword1 = self._callback.execute("Please enter your new password");
         newpassword2 = self._callback.execute("Please enter your new password again");
         if (newpassword1 != newpassword2):
-            raise CryptoException("Passwords do not match")
+            raise CryptoPasswordMismatchException("Passwords do not match")
         newcipher = self._getcipher_real(newpassword1, self._algo)
         self._keycrypted = newcipher.encrypt(self._preparedata(key, newcipher.block_size)).encode('base64')
         
@@ -171,7 +194,8 @@ class CryptoEngine:
             and (self._timeout == -1
                  or (time.time() - CryptoEngine._timeoutcount) < self._timeout)):
             return self._cipher
-            
+        if (self._callback == None):
+            raise CryptoNoCallbackException("No Callback exception")
         if (self._keycrypted == None):
             raise CryptoNoKeyException("Encryption key has not been generated")
         
@@ -257,3 +281,6 @@ class DummyCryptoEngine(CryptoEngine):
     def decrypt(self, ciphertext):
         """Unpickle the object."""
         return cPickle.loads(str(ciphertext))
+
+    def changepassword(self):
+        return ''
